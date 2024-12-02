@@ -1,0 +1,118 @@
+services:
+    frontend_service:
+        tty: true
+        container_name: frontend
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
+        depends_on:
+            - history_service
+            - recommender_service
+            - random_movies_service
+        environment:
+            FRONTEND_PORT: ${FRONTEND_PORT}
+            HISTORY_SERVICE_URL: "http://history:${HISTORY_PORT}"
+            HISTORY_SERVICE_NAME: "history"
+            
+            RANDOM_MOVIES_SERVICE: "http://randomMovies:${RANDOM_MOVIES_PORT}"
+            MOVIES_SERVICE: "http://movies:${MOVIES_SERVICE_PORT}"
+            RECOMMENDER_SERVICE_URL: "http://recommender:${RECOMMENDER_PORT}"
+            FRONTEND_SECRET: ${FRONTEND_SECRET}
+            HISTORY_PORT: ${HISTORY_PORT}
+        ports:
+            - "9990:${FRONTEND_PORT}"
+            
+    recommender_service:
+        container_name: recommender
+        tty: true
+        build:
+            context: ./recommender
+            dockerfile: Dockerfile
+        depends_on:
+            - rabbitmq
+        environment:
+            RECOMMENDER_PORT: ${RECOMMENDER_PORT}
+            MESSAGE_QUEUE_URL: "amqp://rabbitmq:${RMQ_PORT}"
+        restart: always
+        ports:
+            - "9991:${RECOMMENDER_PORT}"
+        deploy:
+            resources:
+                limits:
+                    memory: 8G
+            
+    movies_service:
+        container_name: movies
+        build:
+            context: ./movies
+            dockerfile: Dockerfile
+        depends_on:
+            - mongodb
+        environment:
+            MOVIES_SERVICE_PORT: ${MOVIES_SERVICE_PORT}
+            MONGODB_URL: "mongodb://mongodb:${MONGODB_PORT}"
+        ports:
+            - "9992:${MOVIES_SERVICE_PORT}"
+        
+    random_movies_service:
+        container_name: randomMovies
+        build:
+            context: ./random_movies
+            dockerfile: Dockerfile
+        environment:
+            MOVIES_SERVICE: "http://movies:${MOVIES_SERVICE_PORT}"
+            RANDOM_MOVIES_PORT: ${RANDOM_MOVIES_PORT}
+        depends_on:
+            - movies_service
+        ports:
+            - "9993:${RANDOM_MOVIES_PORT}"
+        
+    history_service:
+        tty: true
+        container_name: history
+        build:
+            context: ./history
+            dockerfile: Dockerfile
+        depends_on:
+            - rabbitmq
+        environment:
+            MESSAGE_QUEUE_URL: "amqp://rabbitmq:${RMQ_PORT}"
+            HISTORY_PORT: ${HISTORY_PORT}
+
+        # the connection to rabbitmq fails at first because depends_on waits until the container starts, not until it's ready
+        # there's a solution that involves a wait-for-it.sh script but this service is small enough that restarting is fine
+        restart: always
+
+        ports:
+            - "9994:${HISTORY_PORT}"
+    
+    rabbitmq:
+        container_name: rabbitmq
+        image: "rabbitmq:4.0.3"
+        
+        # see this: https://www.rabbitmq.com/docs/configure#supported-environment-variables
+        environment:
+            RABBITMQ_NODE_PORT: ${RMQ_PORT}
+        ports:
+            - "5672:${RMQ_PORT}"
+    
+    mongodb:
+        container_name: mongodb
+        image: "mongo:8.0.3"
+        build:
+            context: ./database
+            dockerfile: Dockerfile
+        ports:
+            - "${MONGODB_PORT}:${MONGODB_PORT}"
+        volumes:
+            # this isn't well documented, but by placing this script in that folder, it'll run after mongod starts
+            # The contents of init.sh are a call to mongoimport with the data to load
+            # It can't run as a RUN directive in the Dockerfile, because that's build time (before starting mongod)
+            # It can't run as a CMD directive (because it'd override the starting call to mongod)
+            # It could run as mongod <args> && ./init.sh, but then it'd have to be a more complex scripts that ensures it runs only if the database is empty
+            - ./database/init.sh:/docker-entrypoint-initdb.d/init.sh
+            
+        environment:
+            # unlike MONGO_INITDB_* variables, these are defined for mongoimport in init.sh
+            MAIN_DB: "peliculas"
+            MAIN_COLLECTION: "movies"

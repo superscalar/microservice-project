@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<link rel="icon" href="favicon.ico" />
+	<title>Movie Recommender</title>
+	<link rel="stylesheet" href="styles/reset2.css">
+	<style type="text/css">
+		html {
+			background:
+				radial-gradient(black 15%, transparent 16%) 0 0,
+				radial-gradient(black 15%, transparent 16%) 8px 8px,
+				radial-gradient(rgba(255,255,255,.1) 15%, transparent 20%) 0 1px,
+				radial-gradient(rgba(255,255,255,.1) 15%, transparent 20%) 8px 9px;
+			background-color:#282828;
+			background-size:16px 16px;
+		}
+
+		body {
+			font-family: "Arial", "Verdana", sans-serif;
+		}
+
+		main {
+			display: grid;
+			grid-template-columns: 4fr 1fr;
+			grid-template-rows: 1fr;
+			grid-column-gap: 0px;
+			grid-row-gap: 0px;
+		}
+
+		.moviegrid {
+			display: grid;
+			/*grid-template-rows: repeat(4, 1fr);
+			grid-template-columns: repeat(5, 1fr); */
+			
+			/* grid-template-rows: repeat(4, 1fr); */
+			grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); /* formerly minmax(295px, 1fr) */
+			grid-gap: 1rem;
+		}
+
+		:root {
+			--card-width: 250px; /* 300px */
+			--card-height: 350px; /* 400px */
+		}
+
+		.card {
+			padding: 0 .5rem;
+
+			/*background-color: #ecf0f1;*/
+			background-color: #8a8a8a;
+
+			border: 3px solid white;
+			border-radius: 15px;
+			width: var(--card-width);
+			height: var(--card-height);
+
+			display: flex;
+			flex-direction: column;
+			justify-content: center;
+			align-items: center;
+
+			/*overflow-y: scroll;*/
+			/*padding-top: 1rem;*/
+		}
+
+		.card > .title {
+			/*position: relative;
+			top: -6px;
+			left: -155px;*/
+		}
+
+		.poster {
+			border-radius: 15px;
+
+			height: auto; 
+			width: auto; 
+			max-width: calc(var(--card-width) - 60px); 
+			max-height: calc(var(--card-height) - 10px);
+
+			/*height: auto;
+			max-width: 50%;*/
+		}
+
+		.displayplot > .poster { display: none; }
+		.displayplot > .summary { display: block; }
+
+		.displayposter > .poster { display: block; }
+		.displayposter > .summary { display: none; }
+		
+	</style>
+</head>
+<body>
+
+	<main>
+		<section class="moviegrid">
+
+
+		</section>
+
+		<section class="recommendations">
+			<h1>Recommendations</h1>
+		</section>
+	</main>
+
+	<style type="text/css">
+		.recommendations {
+			color: #eee;
+			border-left: 4px solid #eee;
+			min-height: 100vh;
+			overflow-y: scroll;
+		}
+
+		.recommendations > h1 {
+			text-align: center;
+		}
+
+		#recommend-me-button {
+			font-size: 1rem; /* later, adjust this to screen size */
+			font-weight: bold;
+			color: #eee;
+			border-radius: 100%;
+			background-color: indianred;
+			border: 3px solid #99999;
+			padding: 1rem;
+
+			position: fixed;
+			bottom: 50px;
+			left: 50px;
+			z-index: 9999;
+
+			box-shadow: rgba(0, 0, 0, 0.5) 6px 8px 10px 5px;
+
+			/*transition: all 1s linear;*/
+		}
+
+		/*#recommend-me-button:hover {
+			color: white;
+			font-size: 1.3rem;
+			padding: 1.2rem;
+		}*/
+	</style>
+	<button id="recommend-me-button"> Recommend me <br> a movie! </button>
+	<script type="text/javascript">
+		async function fetchJSON(url) {
+			const endpointResponse = await fetch(url);
+			const jsonResponse = await endpointResponse.json();
+			return jsonResponse;
+		}
+	
+		async function getMovieById(id) {
+			return await fetchJSON(`/getMovieById/${id}`);
+		}
+
+		document.querySelector("#recommend-me-button").addEventListener('click', async (event) => {
+			const recommendedMovieRecord = await getRecommendation();
+			console.log(recommendedMovieRecord);
+			const recommendedMovie = await getMovieById(recommendedMovieRecord.id);
+			console.log("[recommend button's click handler]", recommendedMovie);
+			fix(recommendedMovie);
+			const card = makeCard(recommendedMovie);
+			document.querySelector(".recommendations").appendChild(card);
+			console.log("[recommend button's click handler] recommended card:",card);
+		});
+		
+		async function getRandomMovies() {
+			const randomMovies = await fetchJSON('/randomMovies');
+			console.log("[getRandomMovies] >>>>>", randomMovies);
+			return randomMovies;
+		}
+	</script>
+
+<script type="text/javascript">
+	let clickHistory = [];
+	
+	async function recordClick(movieID) {
+		const record = {"movieID": movieID};
+		console.log("[recordClick] Recording " + JSON.stringify(record));
+		
+		clickHistory.push(record); // keeping a local copy may be useful
+		
+		const historyServerResponse = await fetch('/history', {method: "POST", body: JSON.stringify(record)});
+		console.log(`History request returned [${historyServerResponse.status}] ${historyServerResponse.statusText}`);
+		const historyRequestStatus = await historyServerResponse.json();
+		console.log(`Raw reply: ${historyRequestStatus}`);
+		console.log(`History server replied: ${JSON.stringify(historyRequestStatus)}`);
+	}
+	
+	async function getRecommendation() {
+		const recommendation = await fetchJSON('/recommend');
+		return recommendation[0];
+	}
+</script>
+
+<script type="text/javascript">
+	const PLACEHOLDER_POSTER = "/static/placeholder.jpg";
+	
+	function fix(movie) {
+		// Some movies are missing certain attributes
+		// for example, the movie Outsider has no poster, so it ends up being undefined
+		// The source dataset could also be cleaned up once and for all.
+
+		movie.poster = movie.poster ?? PLACEHOLDER_POSTER;
+		movie.plot = movie.plot ?? "This movie has no plot description";
+	}
+
+	function makeCard(movie) {
+		console.log("[DEBUG] [makeCard]", movie);
+		const displayPlotSummary = (event) => {
+			event.target.parentElement.classList.remove("displayposter");
+			event.target.parentElement.classList.add("displayplot");
+			
+			if (!event.target.parentElement.classList.contains("clickedOnce")) {
+				// record the user's click only if this has never been clicked before
+				recordClick(movie.id)
+				event.target.parentElement.classList.add("clickedOnce");
+			}
+		}
+
+		const displayPoster = (event) => {
+			event.target.parentElement.classList.add("displayposter");
+			event.target.parentElement.classList.remove("displayplot");
+		}
+
+		let title = document.createElement("h3");
+		title.classList.add("title");
+		title.textContent = movie.title;
+
+		let card = document.createElement("article");
+		card.classList.add("card");
+		card.classList.add("displayposter");
+
+		let plot = document.createElement("div");
+		plot.classList.add("summary");
+		plot.textContent = movie.plot;
+		plot.addEventListener("click", displayPoster);
+
+		let poster = document.createElement("img");
+		poster.classList.add("poster");
+		poster.alt = "Poster for the movie " + movie.title;
+		poster.src = movie.poster;
+		poster.addEventListener("click", displayPlotSummary);
+
+		// poster.addEventListener("error", (event) => event.target.src = PLACEHOLDER_POSTER);
+		poster.addEventListener("error", (event) => {
+			console.log(event.target);
+			console.log(event.target.src, "errors out - replacing it with a placeholder");
+			event.target.src = PLACEHOLDER_POSTER;
+		});
+
+		card.appendChild(title);
+		card.appendChild(plot);
+		card.appendChild(poster);
+
+		return card;
+	}
+</script>
+
+<script type="module">
+	const grid = document.querySelector(".moviegrid");
+	const random_movies = await getRandomMovies();
+	for (const movie of random_movies) {
+		console.log("<<random movies loop>>", movie);
+		fix(movie);
+
+		const card = makeCard(movie);
+		grid.appendChild(card);
+	}
+</script>
+
+</body>
+</html>

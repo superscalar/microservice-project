@@ -34,6 +34,8 @@ services:
             RECOMMENDER_PORT: ${RECOMMENDER_PORT}
             MESSAGE_QUEUE_URL: "amqp://rabbitmq:${RMQ_PORT}"
         restart: always
+
+        # Debug
         ports:
             - "9991:${RECOMMENDER_PORT}"
         deploy:
@@ -64,6 +66,8 @@ services:
             RANDOM_MOVIES_PORT: ${RANDOM_MOVIES_PORT}
         depends_on:
             - movies_service
+
+        # Debug
         ports:
             - "9993:${RANDOM_MOVIES_PORT}"
         
@@ -83,6 +87,7 @@ services:
         # there's a solution that involves a wait-for-it.sh script but this service is small enough that restarting is fine
         restart: always
 
+        # Debug
         ports:
             - "9994:${HISTORY_PORT}"
     

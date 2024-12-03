@@ -29,7 +29,7 @@ def isString(s):
     return type(s) == type("")
 
 def getHistoryForUser(userID):
-    print(f"[DEBUG] {userHistories}")
+    print(f"[DEBUG] {userID} => {userHistories}")
     return userHistories[userID] # defaultdict ensures no KeyError
 
 def callback(ch, method, properties, body):

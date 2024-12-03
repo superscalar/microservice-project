@@ -1,0 +1,12 @@
+{
+	"authors": [
+		"superscalar"
+	],
+	"copyright": "Copyright © 2024, superscalar",
+	"dependencies": {
+		"vibe-d": "~>0.9"
+	},
+	"description": "Movies microservice",
+	"license": "proprietary",
+	"name": "movies"
+}

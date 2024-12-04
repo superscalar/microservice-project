@@ -36,8 +36,8 @@ services:
         restart: always
 
         # Debug
-        ports:
-            - "9991:${RECOMMENDER_PORT}"
+        # ports:
+        #     - "9991:${RECOMMENDER_PORT}"
         deploy:
             resources:
                 limits:
@@ -53,8 +53,9 @@ services:
         environment:
             MOVIES_SERVICE_PORT: ${MOVIES_SERVICE_PORT}
             MONGODB_URL: "mongodb://mongodb:${MONGODB_PORT}"
-        ports:
-            - "9992:${MOVIES_SERVICE_PORT}"
+        # Debug
+        # ports:
+        #     - "9992:${MOVIES_SERVICE_PORT}"
         
     random_movies_service:
         container_name: randomMovies
@@ -68,8 +69,8 @@ services:
             - movies_service
 
         # Debug
-        ports:
-            - "9993:${RANDOM_MOVIES_PORT}"
+        # ports:
+        #     - "9993:${RANDOM_MOVIES_PORT}"
         
     history_service:
         tty: true
@@ -88,8 +89,8 @@ services:
         restart: always
 
         # Debug
-        ports:
-            - "9994:${HISTORY_PORT}"
+        # ports:
+        #     - "9994:${HISTORY_PORT}"
     
     rabbitmq:
         container_name: rabbitmq
